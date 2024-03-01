@@ -30,7 +30,8 @@ def parseparagraphs(paragraphs) -> [Paragraph]:
             i -= 1
             last_ch = par[i]
 
-        type_of_paragraph = "title"
+        type_of_paragraph = ""
+
 
         if last_ch == ";":
             type_of_paragraph = "enum part"
@@ -51,7 +52,6 @@ def parseparagraphs(paragraphs) -> [Paragraph]:
                 type_of_paragraph += "enum start"
                 tab = True
             end_enum = True
-
 
         curr_par = Paragraph(par, par_level, type_of_paragraph)
         parsed_paragraphs.append(curr_par)
