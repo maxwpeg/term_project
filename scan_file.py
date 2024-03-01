@@ -14,56 +14,62 @@ def docx2text(filename):
     return result
 
 
+def get_last_char(line):
+    i = len(line) - 1
+    last_ch = line[i]
+    while i > 0 and last_ch not in consts.end_punctuation_marks and last_ch not in consts.russian_alphabet:
+        i -= 1
+        last_ch = line[i]
+
+    return last_ch
+
+
 def parseparagraphs(paragraphs) -> [Paragraph]:
-    par_level = 0
     parsed_paragraphs = []
-    end_enum = True
-    prev_type = ""
-    _tab = False
-    tab = False
+    current_par_level = 0
+    enum_started_lst = [False] * len(paragraphs)
+    case_lst = ["N"] * len(paragraphs)
 
     for par in paragraphs:
-        i = len(par) - 1
-        last_ch = par[i]
-
-        while i > 0 and last_ch not in consts.end_punstuation_marks and last_ch not in consts.russian_alphabet:
-            i -= 1
-            last_ch = par[i]
+        for i in range(len(enum_started_lst) - 1, -1, -1):
+            if enum_started_lst[i]:
+                break
+            current_par_level = i
 
         type_of_paragraph = ""
+        last_ch = get_last_char(par)
 
+        if current_par_level > 0 and enum_started_lst[current_par_level - 1]:
 
-        if last_ch == ";":
-            type_of_paragraph = "enum part"
-            end_enum = False
-        else:
-            if "enum start" in prev_type:
-                type_of_paragraph = "enum part"
-            if not end_enum:
-                type_of_paragraph = "enum end"
-                _tab = True
-            elif last_ch == ".":
-                type_of_paragraph = " plain"
-            if last_ch == ":":
-                if type_of_paragraph == "title":
-                    type_of_paragraph = ""
+            if case_lst[current_par_level] == "N":
+                if par[0] in consts.lower_alphabet:
+                    case_lst[current_par_level] = "L"
                 else:
-                    type_of_paragraph += " "
-                type_of_paragraph += "enum start"
-                tab = True
-            end_enum = True
+                    case_lst[current_par_level] = "U"
+            elif last_ch != ";" and ((case_lst[current_par_level] == "L" and par[0] not in consts.lower_alphabet) or
+                  (case_lst[current_par_level] == "U" and par[0] not in consts.upper_alphabet)):
+                current_par_level -= 1
 
-        curr_par = Paragraph(par, par_level, type_of_paragraph)
+            if last_ch == ".":
+                type_of_paragraph += "enum_last_"
+                enum_started_lst[current_par_level - 1] = False
+                case_lst[current_par_level] = "N"
+            else:
+                type_of_paragraph += "enum_part_"
+
+        if last_ch == ":":
+            type_of_paragraph += "enum_head_"
+            enum_started_lst[current_par_level] = True
+
+        if type_of_paragraph == "" and last_ch == ".":
+            type_of_paragraph += "plain"
+
+        if type_of_paragraph == "":
+            type_of_paragraph += "title"
+
+        curr_par = Paragraph(par, current_par_level, type_of_paragraph)
         parsed_paragraphs.append(curr_par)
 
-        if tab:
-            tab = False
-            par_level += 1
-        elif _tab:
-            _tab = False
-            par_level -= 1
-
-        prev_type = curr_par.type
     return parsed_paragraphs
 
 
@@ -96,7 +102,7 @@ def unite_paragraphs(paragraphs):
     return united_paragraphs
 
 
-lines = docx2text('1.docx')
+lines = docx2text('2.docx')
 data = parseparagraphs(lines)
 for d in data:
     print(d)

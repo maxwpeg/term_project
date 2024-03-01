@@ -17,4 +17,4 @@ class Paragraph:
         return self._level
 
     def __str__(self):
-        return (self.level - 1) * "\t" + f"{self._type}: {self._content}"
+        return self.level * "\t" + f"{self._type}: {self._content}"
