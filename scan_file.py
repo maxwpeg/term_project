@@ -1,6 +1,8 @@
 from docx import Document
 import Entity
 import pymorphy2
+from ParagraphType import ParagraphType
+from EndMarks import EndMarks
 import consts
 from Paragraph import Paragraph
 
@@ -20,54 +22,52 @@ def get_last_char(line):
     while i > 0 and last_ch not in consts.end_punctuation_marks and last_ch not in consts.russian_alphabet:
         i -= 1
         last_ch = line[i]
-
     return last_ch
 
 
-def parseparagraphs(paragraphs) -> [Paragraph]:
+def get_last_true_index(lst):
+    for i in range(len(lst) - 1, -1, -1):
+        if lst[i]:
+            return i + 1
+    return 0
+
+
+def parse_paragraphs(paragraphs):
     parsed_paragraphs = []
-    current_par_level = 0
     enum_started_lst = [False] * len(paragraphs)
     case_lst = ["N"] * len(paragraphs)
 
     for par in paragraphs:
-        for i in range(len(enum_started_lst) - 1, -1, -1):
-            if enum_started_lst[i]:
-                break
-            current_par_level = i
 
-        type_of_paragraph = ""
+        curr_par_lvl = get_last_true_index(enum_started_lst)
+        type_of_par = EndMarks.EMPTY.value
         last_ch = get_last_char(par)
+        curr_case = "L" if par[0] in consts.lower_alphabet else "U"
 
-        if current_par_level > 0 and enum_started_lst[current_par_level - 1]:
+        if curr_par_lvl > 0 and enum_started_lst[curr_par_lvl - 1]:
+            if case_lst[curr_par_lvl] == "N":
+                case_lst[curr_par_lvl] = curr_case
+            elif last_ch != EndMarks.SEMICOLON.value and case_lst[curr_par_lvl] != curr_case:
+                curr_par_lvl -= 1
 
-            if case_lst[current_par_level] == "N":
-                if par[0] in consts.lower_alphabet:
-                    case_lst[current_par_level] = "L"
-                else:
-                    case_lst[current_par_level] = "U"
-            elif last_ch != ";" and ((case_lst[current_par_level] == "L" and par[0] not in consts.lower_alphabet) or
-                  (case_lst[current_par_level] == "U" and par[0] not in consts.upper_alphabet)):
-                current_par_level -= 1
-
-            if last_ch == ".":
-                type_of_paragraph += "enum_last_"
-                enum_started_lst[current_par_level - 1] = False
-                case_lst[current_par_level] = "N"
+            if last_ch == EndMarks.POINT.value:
+                type_of_par += ParagraphType.ENUM_LAST.value
+                enum_started_lst[curr_par_lvl - 1] = False
+                case_lst[curr_par_lvl] = "N"
             else:
-                type_of_paragraph += "enum_part_"
+                type_of_par += ParagraphType.ENUM_PART.value
 
-        if last_ch == ":":
-            type_of_paragraph += "enum_head_"
-            enum_started_lst[current_par_level] = True
+        if last_ch == EndMarks.COLON.value:
+            type_of_par += ParagraphType.ENUM_HEAD.value
+            enum_started_lst[curr_par_lvl] = True
 
-        if type_of_paragraph == "" and last_ch == ".":
-            type_of_paragraph += "plain"
+        if type_of_par == EndMarks.EMPTY.value and last_ch == EndMarks.POINT.value:
+            type_of_par += ParagraphType.PLAIN.value
 
-        if type_of_paragraph == "":
-            type_of_paragraph += "title"
+        if type_of_par == EndMarks.EMPTY.value:
+            type_of_par += ParagraphType.TITLE.value
 
-        curr_par = Paragraph(par, current_par_level, type_of_paragraph)
+        curr_par = Paragraph(par, curr_par_lvl, type_of_par)
         parsed_paragraphs.append(curr_par)
 
     return parsed_paragraphs
@@ -77,24 +77,24 @@ def unite_paragraphs(paragraphs):
     united_paragraphs = []
     i = 0
     while i < len(data):
-        new_content = ""
+        new_content = EndMarks.EMPTY.value
         new_par = None
-        if data[i].type == "title":
-            while i < len(data) and data[i].type == "title":
+        if data[i].type == ParagraphType.TITLE.value:
+            while i < len(data) and data[i].type == ParagraphType.TITLE.value:
                 new_content += data[i].content
                 i += 1
-            new_par = Paragraph(new_content, "title")
+            new_par = Paragraph(new_content, ParagraphType.TITLE.value)
 
-        elif data[i].type == "enum start":
+        elif data[i].type == ParagraphType.ENUM_HEAD.value:
             new_content += data[i].content
             i += 1
-            while i < len(data) and data[i].type != "enum end":
+            while i < len(data) and data[i].type != ParagraphType.ENUM_LAST.value:
                 new_content += data[i].content
                 i += 1
-            new_par = Paragraph(new_content, "enum")
+            new_par = Paragraph(new_content, ParagraphType.ENUM_LAST.value)
 
-        elif data[i].type == "plain":
-            while i < len(data) and data[i].type == "plain":
+        elif data[i].type == ParagraphType.PLAIN.value:
+            while i < len(data) and data[i].type == ParagraphType.PLAIN.value:
                 new_content += data[i].content
                 i += 1
             new_par = Paragraph(new_content)
@@ -102,8 +102,8 @@ def unite_paragraphs(paragraphs):
     return united_paragraphs
 
 
-lines = docx2text('2.docx')
-data = parseparagraphs(lines)
+lines = docx2text('1.docx')
+data = parse_paragraphs(lines)
 for d in data:
     print(d)
-# united_data = unite_paragraphs(data)
+united_data = unite_paragraphs(data)
