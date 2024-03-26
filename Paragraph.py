@@ -1,20 +1,32 @@
+import ParagraphType
+
+
 class Paragraph:
-    def __init__(self, content, level=1, type="plain"):
+    def __init__(self, content, case, level, types):
         self._content = content
-        self._type = type
+        self._types = types
         self._level = level
+        self._start_case = case
 
     @property
     def content(self):
         return self._content
 
     @property
-    def type(self):
-        return self._type
+    def types(self):
+        return self._types
+
+    @property
+    def case(self):
+        return self._start_case
 
     @property
     def level(self):
         return self._level
 
     def __str__(self):
-        return self.level * "\t" + f"{self._type}: {self._content}"
+        res = self.level * "\t"
+        for tp in self._types:
+            res += tp.value
+        res += f": {self._content}"
+        return res
